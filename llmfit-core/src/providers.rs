@@ -414,6 +414,13 @@ impl ModelProvider for MlxProvider {
         let tag = model_tag.to_string();
         let (tx, rx) = std::sync::mpsc::channel();
 
+        // Resolve the hf binary path before spawning the thread so we can
+        // give a clear "not found" error instead of a confusing OS error.
+        let hf_bin = find_binary("hf").ok_or_else(|| {
+            "hf not found in PATH. Install it with: uv tool install 'huggingface_hub[cli]'"
+                .to_string()
+        })?;
+
         std::thread::spawn(move || {
             let _ = tx.send(PullEvent::Progress {
                 status: format!("Downloading mlx-community/{}...", tag),
@@ -421,21 +428,28 @@ impl ModelProvider for MlxProvider {
             });
 
             // Download from Hugging Face using their CLI tool
-            let result = std::process::Command::new("hf")
+            let result = std::process::Command::new(&hf_bin)
                 .args(["download", &format!("mlx-community/{}", tag)])
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::piped())
-                .status();
+                .output();
 
             match result {
-                Ok(status) if status.success() => {
+                Ok(output) if output.status.success() => {
                     let _ = tx.send(PullEvent::Done);
                 }
-                _ => {
-                    let _ = tx.send(PullEvent::Error(
-                        "hf not found. Install it with: uv tool install 'huggingface_hub[cli]'"
-                            .to_string(),
-                    ));
+                Ok(output) => {
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    let _ = tx.send(PullEvent::Error(format!(
+                        "hf download failed (exit {}): {}",
+                        output.status.code().unwrap_or(-1),
+                        stderr.trim()
+                    )));
+                }
+                Err(e) => {
+                    let _ = tx.send(PullEvent::Error(format!(
+                        "failed to run hf: {e}"
+                    )));
                 }
             }
         });
