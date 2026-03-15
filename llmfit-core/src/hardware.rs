@@ -1933,7 +1933,7 @@ fn estimate_vram_from_name(name: &str) -> f64 {
     if lower.contains("3060") {
         return 12.0;
     }
-    // Data center
+    // Data center / professional
     if lower.contains("h100") {
         return 80.0;
     }
@@ -1942,6 +1942,25 @@ fn estimate_vram_from_name(name: &str) -> f64 {
     }
     if lower.contains("l40") {
         return 48.0;
+    }
+    // NVIDIA RTX professional (Ampere) — must be checked before the broad "a10" match
+    if lower.contains("a6000") {
+        return 48.0;
+    }
+    if lower.contains("a5500") {
+        return 24.0;
+    }
+    if lower.contains("a5000") {
+        return 24.0;
+    }
+    if lower.contains("a4500") {
+        return 20.0;
+    }
+    if lower.contains("a4000") {
+        return 16.0;
+    }
+    if lower.contains("a2000") {
+        return 12.0;
     }
     if lower.contains("a10") {
         return 24.0;
@@ -2126,6 +2145,16 @@ mod tests {
     fn test_estimate_vram_gb10() {
         assert_eq!(super::estimate_vram_from_name("NVIDIA GB10"), 128.0);
         assert_eq!(super::estimate_vram_from_name("NVIDIA GB20"), 128.0);
+    }
+
+    #[test]
+    fn test_estimate_vram_rtx_professional() {
+        assert_eq!(super::estimate_vram_from_name("NVIDIA RTX A6000"), 48.0);
+        assert_eq!(super::estimate_vram_from_name("NVIDIA RTX A5500"), 24.0);
+        assert_eq!(super::estimate_vram_from_name("NVIDIA RTX A5000"), 24.0);
+        assert_eq!(super::estimate_vram_from_name("NVIDIA RTX A4500"), 20.0);
+        assert_eq!(super::estimate_vram_from_name("NVIDIA RTX A4000"), 16.0);
+        assert_eq!(super::estimate_vram_from_name("NVIDIA RTX A2000"), 12.0);
     }
 
     #[test]
